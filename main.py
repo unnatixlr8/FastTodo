@@ -1,8 +1,8 @@
 from fastapi import FastAPI, Depends, status, Response, HTTPException
 from typing import Optional
 import uvicorn
-import schemas, models
-from database import engine, SessionLocal
+import schemas, models, authentication, oauth2
+from database import engine, SessionLocal, get_db
 from sqlalchemy.orm import Session
 from hashing import Hash
 
@@ -11,37 +11,32 @@ app = FastAPI()
 
 models.Base.metadata.create_all(engine)
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+app.include_router(authentication.router)
 
 
 @app.get('/todo', tags=['Todo'])
-def all(db: Session = Depends(get_db)):
+def all(db: Session = Depends(get_db), get_current_user: schemas.User = Depends(oauth2.get_current_user)):
     todo_list = db.query(models.Todo).all()
     return todo_list
 
 
 @app.get('/todo/{id}', status_code=status.HTTP_200_OK, response_model=schemas.ShowTodo, tags=['Todo'])
-def show(id, response: Response, db: Session = Depends(get_db)):
+def show(id, response: Response, db: Session = Depends(get_db), get_current_user: schemas.User = Depends(oauth2.get_current_user)):
     todo_list = db.query(models.Todo).filter(models.Todo.id == id).first()
     if not todo_list:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Todo item {id} not found")
     return todo_list
 
 @app.post('/todo', status_code=status.HTTP_201_CREATED, tags=['Todo'])
-def create(request: schemas.Todo, db: Session = Depends(get_db)):
-    new_todo = models.Todo(title=request.title, body=request.body)
+def create(request: schemas.Todo, db: Session = Depends(get_db), get_current_user: schemas.User = Depends(oauth2.get_current_user)):
+    new_todo = models.Todo(title=request.title, body=request.body, user_id = 1)
     db.add(new_todo)
     db.commit()
     db.refresh(new_todo)
     return new_todo
 
 @app.delete('/todo/{id}', status_code=status.HTTP_200_OK, tags=['Todo'])
-def delete(id, db:Session = Depends(get_db)):
+def delete(id, db:Session = Depends(get_db), get_current_user: schemas.User = Depends(oauth2.get_current_user)):
     todo_list = db.query(models.Todo).filter(models.Todo.id == id)
     if not todo_list.first():
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Todo {id} not found")
@@ -50,7 +45,7 @@ def delete(id, db:Session = Depends(get_db)):
     return {'detail' : f"Todo {id} deleted"}
 
 @app.put('/todo/{id}', status_code=status.HTTP_202_ACCEPTED, tags=['Todo'])
-def update(id, request:schemas.Todo, db:Session = Depends(get_db)):
+def update(id, request:schemas.Todo, db:Session = Depends(get_db), get_current_user: schemas.User = Depends(oauth2.get_current_user)):
     todo_list = db.query(models.Todo).filter(models.Todo.id == id)
     if not todo_list.first():
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail= f"Todo {id} not found")
@@ -69,7 +64,7 @@ def create_user(request: schemas.User, db:Session = Depends(get_db)):
     return new_user
 
 @app.get('/user/{id}', response_model=schemas.ShowUser, tags=['User'])
-def get_user(id: int, db:Session = Depends(get_db)):
+def get_user(id: int, db:Session = Depends(get_db), get_current_user: schemas.User = Depends(oauth2.get_current_user)):
     user = db.query(models.User).filter(models.User.id == id).first()
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail= f"User with {id} not found")
