@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Depends, status, Response, HTTPException
+from fastapi.responses import RedirectResponse
 from typing import Optional
 import uvicorn
 import schemas, models, authentication, oauth2
@@ -13,6 +14,9 @@ models.Base.metadata.create_all(engine)
 
 app.include_router(authentication.router)
 
+@app.get("/", tags=['Backend Stuff'])
+async def docs_redirect():
+    return RedirectResponse(url='/docs')
 
 @app.get('/todo', tags=['Todo'])
 def all(db: Session = Depends(get_db), get_current_user: schemas.User = Depends(oauth2.get_current_user)):
