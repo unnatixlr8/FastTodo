@@ -4,6 +4,8 @@ import uvicorn
 import schemas, models
 from database import engine, SessionLocal
 from sqlalchemy.orm import Session
+from hashing import Hash
+
 
 app = FastAPI()
 
@@ -17,44 +19,20 @@ def get_db():
         db.close()
 
 
-
-@app.get('/')
-def index():
-    return {'author': {'name': 'Unnati'}}
-
-
-@app.get('/about')
-def about():
-    return {'data': 'This app is made using FastAPI and Python by Unnati Gupta'}
-
-
-# @app.get('/todo')
-# def todo(limit = 10, published: bool = True, sort: Optional[str] = None):
-#     if published:
-#         return {'data': f'{limit} published from the db'}
-#     else:
-#         return {'data': f'{limit} unpublished todos from the db'}
-
-@app.get('/todo')
+@app.get('/todo', tags=['Todo'])
 def all(db: Session = Depends(get_db)):
     todo_list = db.query(models.Todo).all()
     return todo_list
 
-    
 
-# @app.get('/todo/draft')
-# def draft():
-#     return {'data':'unpublished'}
-
-
-@app.get('/todo/{id}', status_code=status.HTTP_200_OK)
+@app.get('/todo/{id}', status_code=status.HTTP_200_OK, response_model=schemas.ShowTodo, tags=['Todo'])
 def show(id, response: Response, db: Session = Depends(get_db)):
     todo_list = db.query(models.Todo).filter(models.Todo.id == id).first()
     if not todo_list:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Todo item {id} not found")
     return todo_list
 
-@app.post('/todo', status_code=status.HTTP_201_CREATED)
+@app.post('/todo', status_code=status.HTTP_201_CREATED, tags=['Todo'])
 def create(request: schemas.Todo, db: Session = Depends(get_db)):
     new_todo = models.Todo(title=request.title, body=request.body)
     db.add(new_todo)
@@ -62,7 +40,7 @@ def create(request: schemas.Todo, db: Session = Depends(get_db)):
     db.refresh(new_todo)
     return new_todo
 
-@app.delete('/todo/{id}', status_code=status.HTTP_200_OK)
+@app.delete('/todo/{id}', status_code=status.HTTP_200_OK, tags=['Todo'])
 def delete(id, db:Session = Depends(get_db)):
     todo_list = db.query(models.Todo).filter(models.Todo.id == id)
     if not todo_list.first():
@@ -71,7 +49,7 @@ def delete(id, db:Session = Depends(get_db)):
     db.commit()
     return {'detail' : f"Todo {id} deleted"}
 
-@app.put('/todo/{id}', status_code=status.HTTP_202_ACCEPTED)
+@app.put('/todo/{id}', status_code=status.HTTP_202_ACCEPTED, tags=['Todo'])
 def update(id, request:schemas.Todo, db:Session = Depends(get_db)):
     todo_list = db.query(models.Todo).filter(models.Todo.id == id)
     if not todo_list.first():
@@ -80,5 +58,21 @@ def update(id, request:schemas.Todo, db:Session = Depends(get_db)):
     db.commit()
     return {"detail": f"Todo {id} updated"}
 
+
+@app.post('/user', tags=['User'])
+def create_user(request: schemas.User, db:Session = Depends(get_db)):
+    
+    new_user = models.User(name=request.name, email=request.email, password = Hash.bcrypt(request.password))
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    return new_user
+
+@app.get('/user/{id}', response_model=schemas.ShowUser, tags=['User'])
+def get_user(id: int, db:Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.id == id).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail= f"User with {id} not found")
+    return user
 #if __name__ == "__main__":
 #    uvicorn.run(app, host="127.0.0.1", port=9000)
