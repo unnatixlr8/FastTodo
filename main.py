@@ -8,7 +8,10 @@ from sqlalchemy.orm import Session
 from hashing import Hash
 
 
-app = FastAPI()
+app = FastAPI(
+    title = "FastTodo",
+    description= "A Todo App made using FastApi and Python"
+)
 
 models.Base.metadata.create_all(engine)
 
