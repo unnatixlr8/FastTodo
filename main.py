@@ -16,7 +16,7 @@ app.include_router(authentication.router)
 
 @app.get('/todo', tags=['Todo'])
 def all(db: Session = Depends(get_db), get_current_user: schemas.User = Depends(oauth2.get_current_user)):
-    todo_list = db.query(models.Todo).all()
+    todo_list = db.query(models.Todo).filter(models.Todo.user_id == get_current_user.id).all()
     return todo_list
 
 
@@ -29,7 +29,7 @@ def show(id, response: Response, db: Session = Depends(get_db), get_current_user
 
 @app.post('/todo', status_code=status.HTTP_201_CREATED, tags=['Todo'])
 def create(request: schemas.Todo, db: Session = Depends(get_db), get_current_user: schemas.User = Depends(oauth2.get_current_user)):
-    new_todo = models.Todo(title=request.title, body=request.body, user_id = 1)
+    new_todo = models.Todo(note=request.note, user_id = get_current_user.id)
     db.add(new_todo)
     db.commit()
     db.refresh(new_todo)
@@ -45,7 +45,7 @@ def delete(id, db:Session = Depends(get_db), get_current_user: schemas.User = De
     return {'detail' : f"Todo {id} deleted"}
 
 @app.put('/todo/{id}', status_code=status.HTTP_202_ACCEPTED, tags=['Todo'])
-def update(id, request:schemas.Todo, db:Session = Depends(get_db), get_current_user: schemas.User = Depends(oauth2.get_current_user)):
+def update(id: int, request:schemas.Todo, db:Session = Depends(get_db), get_current_user: schemas.User = Depends(oauth2.get_current_user)):
     todo_list = db.query(models.Todo).filter(models.Todo.id == id)
     if not todo_list.first():
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail= f"Todo {id} not found")
@@ -57,7 +57,7 @@ def update(id, request:schemas.Todo, db:Session = Depends(get_db), get_current_u
 @app.post('/user', tags=['User'])
 def create_user(request: schemas.User, db:Session = Depends(get_db)):
     
-    new_user = models.User(name=request.name, email=request.email, password = Hash.bcrypt(request.password))
+    new_user = models.User(username=request.username, password = Hash.bcrypt(request.password))
     db.add(new_user)
     db.commit()
     db.refresh(new_user)

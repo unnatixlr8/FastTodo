@@ -3,8 +3,7 @@ from typing import Optional, List
 
 
 class Todo(BaseModel):
-    title : str
-    body : str
+    note : str
 
 class TodoBase(Todo):
     class Config():
@@ -15,13 +14,11 @@ class ShowTodo(Todo):
         orm_mode = True
 
 class User(BaseModel):
-    name : str
-    email : str
+    username : str
     password : str
 
 class ShowUser(BaseModel):
-    name:str
-    email:str
+    username:str
     todos : List[TodoBase] = []
     class Config():
         orm_mode = True
@@ -35,4 +32,4 @@ class Token(BaseModel):
     token_type: str
 
 class TokenData(BaseModel):
-    email: Optional[str] = None
+    username: Optional[str] = None
